@@ -5,9 +5,9 @@ const DefaultAllocator = std.heap.ArenaAllocator;
 
 pub fn ArrayList(comptime T: type) type {
     return struct {
-        len: *usize,
-        items: *[]T,
-        capacity: *usize,
+        len: usize,
+        items: []T,
+        capacity: usize, // TODO: Remove this and use items.len
 
         const Self = @This();
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -16,21 +16,21 @@ pub fn ArrayList(comptime T: type) type {
 
         pub fn init(init_cap: usize) !Self {
             print("initializing...\n", .{});
-            var items = try Self.allocator.alloc(T, init_cap);
+            const items = try Self.allocator.alloc(T, init_cap);
             print("items.len: {}\n", .{items.len});
-            var cap = init_cap;
+            const cap = init_cap;
             print("capacity: {}\n", .{cap});
-            var init_len: usize = 0;
+            const init_len: usize = 0;
             print("init_len: {}\n", .{init_len});
             return Self{
-                .len = &init_len,
-                .items = &items,
-                .capacity = &cap,
+                .len = init_len,
+                .items = items,
+                .capacity = cap,
             };
         }
 
         pub fn length(self: Self) usize {
-            return self.len.*;
+            return self.len;
         }
 
         pub fn prepend(self: Self, item: T) void {
@@ -38,31 +38,31 @@ pub fn ArrayList(comptime T: type) type {
             _ = item;
         }
 
-        pub fn append(self: Self, item: T) !void {
+        pub fn append(self: *Self, item: T) !void {
             print("appending {}...\n", .{item});
-            print("items.len: {}\n", .{self.items.*.len});
-            print("self.len: {}\n", .{self.len.*});
-            if (self.len.* + 1 > self.capacity.*) {
+            print("items.len: {}\n", .{self.items.len});
+            print("self.len: {}\n", .{self.len});
+            if (self.len + 1 > self.capacity) {
                 print("allocating more space...\n", .{});
-                const new_capacity: usize = @intFromFloat(@ceil(@as(f32, @floatFromInt(self.capacity.*)) * Self.alloc_factor));
-                print("old capacity: {}\n", .{self.capacity.*});
+                const new_capacity: usize = @intFromFloat(@ceil(@as(f32, @floatFromInt(self.capacity)) * Self.alloc_factor));
+                print("old capacity: {}\n", .{self.capacity});
                 print("new capacity: {}\n", .{new_capacity});
                 var new_items = try Self.allocator.alloc(T, new_capacity);
                 print("new_items.len: {}\n", .{new_items.len});
-                print("self.len: {}\n", .{self.len.*});
+                print("self.len: {}\n", .{self.len});
 
-                for (self.items.*, 0..) |old_item, i| new_items[i] = old_item;
-                self.items.* = new_items;
-                self.capacity.* = new_capacity;
+                for (self.items, 0..) |old_item, i| new_items[i] = old_item;
+                self.items = new_items;
+                self.capacity = new_capacity;
             }
 
-            self.items.*[self.len.*] = item;
-            self.len.* += 1;
-            print("incrementing self.len: {}\n", .{self.len.*});
+            self.items[self.len] = item;
+            self.len += 1;
+            print("incrementing self.len: {}\n", .{self.len});
 
             print("at the end of append {}\n", .{item});
-            print("items.len: {}\n", .{self.items.*.len});
-            //print("self.len: {}\n", .{self.len.*});
+            //print("items.len: {}\n", .{self.items.len});
+            print("self.len: {}\n", .{self.len});
         }
 
         pub fn insertAt(self: Self, item: T, idx: usize) void {
@@ -78,9 +78,9 @@ pub fn ArrayList(comptime T: type) type {
         }
 
         pub fn get(self: Self, idx: usize) ?T {
-            if (idx < 0 or idx >= self.len.*) return null;
+            if (idx < 0 or idx >= self.len) return null;
 
-            return self.items.*[idx];
+            return self.items[idx];
         }
 
         pub fn removeAt(self: Self, idx: usize) ?T {
@@ -94,13 +94,13 @@ pub fn ArrayList(comptime T: type) type {
 const expect = std.testing.expect;
 
 test "test array list" {
-    const l = try ArrayList(u8).init(3);
+    var l = try ArrayList(u8).init(3);
     try l.append(5);
-    print("l.len after 5: {}\n", .{l.len.*});
+    print("l.len after 5: {}\n", .{l.len});
     try l.append(7);
-    print("l.len after 7: {}\n", .{l.len.*});
+    print("l.len after 7: {}\n", .{l.len});
     try l.append(9);
-    print("l.len after 9: {}\n", .{l.len.*});
+    print("l.len after 9: {}\n", .{l.len});
 
     try expect(l.get(0) == 5);
     try expect(l.get(1) == 7);
@@ -109,10 +109,10 @@ test "test array list" {
     try l.append(10);
     try expect(l.get(3) == 10);
 
-    print("capacity: {d}\n", .{l.capacity.*});
-    print("length: {d}\n", .{l.len.*});
+    print("capacity: {d}\n", .{l.capacity});
+    print("length: {d}\n", .{l.len});
     print("items:\n", .{});
-    for (l.items.*) |item| {
+    for (l.items) |item| {
         print("{d} ", .{item});
     }
 }

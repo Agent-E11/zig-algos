@@ -7,7 +7,6 @@ pub fn ArrayList(comptime T: type) type {
     return struct {
         len: usize,
         items: []T,
-        capacity: usize, // TODO: Remove this and use items.len
 
         const Self = @This();
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -18,27 +17,28 @@ pub fn ArrayList(comptime T: type) type {
             return Self{
                 .len = 0,
                 .items = try Self.allocator.alloc(T, init_cap),
-                .capacity = init_cap,
             };
         }
 
         pub fn length(self: Self) usize {
-            return self.len;
+            return self.len; // TODO: Do I even need this?
         }
 
-        pub fn prepend(self: Self, item: T) void {
+        pub fn prepend(self: *Self, item: T) !void {
             _ = self;
             _ = item;
+            unreachable;
         }
 
         pub fn append(self: *Self, item: T) !void {
-            if (self.len + 1 > self.capacity) {
-                const new_capacity: usize = @intFromFloat(@ceil(@as(f32, @floatFromInt(self.capacity)) * Self.alloc_factor));
+            if (self.len + 1 > self.items.len) {
+                const new_capacity: usize = @intFromFloat(@ceil(@as(f32, @floatFromInt(self.items.len)) * Self.alloc_factor));
                 var new_items = try Self.allocator.alloc(T, new_capacity);
 
                 for (self.items, 0..) |old_item, i| new_items[i] = old_item;
-                self.items = new_items;
-                self.capacity = new_capacity;
+                //const old_items = self.items;
+                self.items = new_items; // FIXME: Will I need to free this eventually?
+                //Self.allocator.free(old_items);
             }
 
             self.items[self.len] = item;
@@ -49,12 +49,13 @@ pub fn ArrayList(comptime T: type) type {
             _ = self;
             _ = item;
             _ = idx;
+            unreachable;
         }
 
         pub fn remove(self: Self, item: T) ?T {
             _ = self;
             _ = item;
-            return;
+            unreachable;
         }
 
         pub fn get(self: Self, idx: usize) ?T {
@@ -66,7 +67,7 @@ pub fn ArrayList(comptime T: type) type {
         pub fn removeAt(self: Self, idx: usize) ?T {
             _ = self;
             _ = idx;
-            return;
+            unreachable;
         }
     };
 }

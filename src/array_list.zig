@@ -3,6 +3,12 @@ const print = std.debug.print;
 const Allocator = std.mem.Allocator;
 const DefaultAllocator = std.heap.ArenaAllocator;
 
+/// Calculate a new capacity using the current capacity and a scale.
+/// Equivalent to `new = current * scale` but also does the appropriate type conversions.
+fn calculateNewCapacity(current: usize, scale: f32) usize {
+    return @intFromFloat(@ceil(@as(f32, @floatFromInt(current)) * scale));
+}
+
 pub fn ArrayList(comptime T: type) type {
     return struct {
         len: usize,
@@ -25,15 +31,35 @@ pub fn ArrayList(comptime T: type) type {
         }
 
         pub fn prepend(self: *Self, item: T) !void {
-            _ = self;
-            _ = item;
-            unreachable;
+            if (self.len + 1 > self.items.len) {
+                var new_items = try Self.allocator.alloc(T, calculateNewCapacity(self.items.len, Self.alloc_factor));
+
+                for (self.items, 1..) |old_item, i| {
+                    new_items[i] = old_item;
+                }
+                //const old_items = self.items;
+                self.items = new_items; // FIXME: Will I need to free this eventually?
+                //Self.allocator.free(old_items);
+
+                // Prepend item
+                self.items[0] = item;
+                self.len += 1;
+                return;
+            }
+            // Shift all items one over
+            var i = self.len;
+            while (i > 0) : (i -= 1) {
+                self.items[i] = self.items[i - 1];
+            }
+
+            // Prepend item
+            self.items[0] = item;
+            self.len += 1;
         }
 
         pub fn append(self: *Self, item: T) !void {
             if (self.len + 1 > self.items.len) {
-                const new_capacity: usize = @intFromFloat(@ceil(@as(f32, @floatFromInt(self.items.len)) * Self.alloc_factor));
-                var new_items = try Self.allocator.alloc(T, new_capacity);
+                var new_items = try Self.allocator.alloc(T, calculateNewCapacity(self.items.len, Self.alloc_factor));
 
                 for (self.items, 0..) |old_item, i| new_items[i] = old_item;
                 //const old_items = self.items;
@@ -84,11 +110,27 @@ test "test array list" {
     try expect(l.get(1) == 7);
     try expect(l.get(2) == 9);
 
-    try l.append(10);
-    try expect(l.get(3) == 10);
+    // Allocate more
+    try l.append(11);
+    try expect(l.get(3) == 11);
 
-    //print("items:\n", .{});
-    //for (l.items) |item| {
-    //print("{d} ", .{item});
-    //}
+    print("capacity: {}\n", .{l.items.len});
+    print("items: ", .{});
+    for (0..l.len) |i| {
+        print("{d} ", .{l.get(i)});
+    }
+    print("\n", .{});
+
+    try l.prepend(3);
+    try l.prepend(1);
+
+    try expect(l.get(0) == 1);
+    try expect(l.get(1) == 3);
+
+    print("capacity: {}\n", .{l.items.len});
+    print("items: ", .{});
+    for (0..l.len) |i| {
+        print("{d} ", .{l.get(i)});
+    }
+    print("\n", .{});
 }
